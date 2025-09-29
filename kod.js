@@ -7,13 +7,17 @@ let pinneC = [  ];
 let isDone = false;
 
 do { 
-    pinneA.pop(1)
-    pinneB.push(2)
-    isDone = true
+    flyttaKlossar
 }
 while (
     isDone == false
 );
+
+function flyttaklossar() {
+    let kloss = pinneA.pop()
+    pinneB.push(kloss)
+    isDone = true
+}
 
 console.log(pinneA)
 console.log(pinneB)
