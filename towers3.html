@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Towers of Hanoi</title>
+  <style>
+    body { font-family: monospace, monospace; margin: 20px; }
+    .peg { display: inline-block; width: 120px; height: 250px; background: #eee; margin: 0 20px; border-radius: 12px; position: relative; vertical-align: top; }
+    .disk { position: absolute; height: 30px; border-radius: 8px; text-align: center; color: white; line-height: 30px; cursor: pointer; }
+    #game { margin-bottom: 20px; }
+    #terminal {
+      width: 600px;
+      height: 200px;
+      background: black;
+      color: lime;
+      padding: 10px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      border-radius: 8px;
+      font-size: 14px;
+      margin-top: 10px;
+    }
+    #controls { margin-bottom: 10px; }
+    #message { color: red; font-weight: bold; margin-top: 8px; display: block; }
+    button {
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h1>Towers of Hanoi</h1>
+  <div id="controls">
+    Number of disks (1 to infinity, practically limited):
+    <input id="diskCount" type="number" value="3" min="1" />
+    <button onclick="startGame()">Start Game</button>
+    <button onclick="runAutoSolver()">Auto Solve</button>
+    <span id="message"></span>
+  </div>
+
+  <div id="game"></div>
+
+  <div id="terminal" aria-label="Game moves output" role="log"></div>
+
+  <script>
+    let PEGS = 3, disks = 3, state, selectedDisk = null, selectedPeg = null;
+    const terminalDiv = document.getElementById('terminal');
+    const messageEl = document.getElementById('message');
+    const gameEl = document.getElementById('game');
+
+    const diskColors = ['#e74c3c', '#3498db', '#f1c40f', '#2ecc71', '#9b59b6', '#1abc9c'];
+
+    function diskColor(i) {
+      return diskColors[i % diskColors.length];
+    }
+
+    function logToTerminal(text) {
+      terminalDiv.textContent += text + "\n";
+      terminalDiv.scrollTop = terminalDiv.scrollHeight;
+    }
+
+    function clearTerminal() {
+      terminalDiv.textContent = "";
+    }
+
+    // Initialize game state for play (visual for disks <= 6, no bricks for more)
+    function initGameState() {
+      state = Array.from({ length: PEGS }, () => []);
+      if (disks <= 6) {
+        for (let i = disks; i >= 1; i--) state[0].push(i);
+      }
+      selectedDisk = null;
+      selectedPeg = null;
+    }
+
+    // Render function - only renders disks if disk count <= 6, otherwise shows no disks
+    function render() {
+      gameEl.innerHTML = '';
+      if (disks > 6) {
+        gameEl.textContent = "Disks too many to display visually; use Auto Solve.";
+        return;
+      }
+      state.forEach((peg, pegIdx) => {
+        const pegEl = document.createElement('div');
+        pegEl.className = 'peg';
+        pegEl.title = `Peg ${pegIdx + 1}`;
+        pegEl.onclick = () => clickPeg(pegIdx);
+        peg.forEach((diskSize, i) => {
+          const diskEl = document.createElement('div');
+          diskEl.className = 'disk';
+          diskEl.style.width = (40 + diskSize * 15) + 'px';
+          diskEl.style.left = (60 - (40 + diskSize * 15) / 2) + 'px';
+          diskEl.style.bottom = (i * 32) + 'px';
+          diskEl.style.background = diskColor(diskSize - 1);
+          diskEl.textContent = diskSize;
+          if (i === peg.length - 1) {
+            diskEl.onclick = e => { e.stopPropagation(); selectDisk(pegIdx, diskSize); };
+          } else {
+            diskEl.style.opacity = "0.5";
+          }
+          pegEl.appendChild(diskEl);
+        });
+        pegEl.style.border = selectedPeg === pegIdx ? '2px solid #27ae60' : 'none';
+        gameEl.appendChild(pegEl);
+      });
+    }
+
+    function selectDisk(pegIdx, diskSize) {
+      selectedDisk = diskSize;
+      selectedPeg = pegIdx;
+      render();
+    }
+
+    function clickPeg(targetPegIdx) {
+      if (selectedDisk === null || selectedPeg === null) return;
+      if (selectedPeg === targetPegIdx) {
+        selectedDisk = null;
+        selectedPeg = null;
+        render();
+        return;
+      }
+      const targetPeg = state[targetPegIdx];
+      if (targetPeg.length === 0 || targetPeg[targetPeg.length - 1] > selectedDisk) {
+        state[selectedPeg].pop();
+        state[targetPegIdx].push(selectedDisk);
+        logToTerminal(`Move disk ${selectedDisk} from Peg ${selectedPeg + 1} to Peg ${targetPegIdx + 1}`);
+        selectedDisk = null;
+        selectedPeg = null;
+        render();
+        checkWin();
+      } else {
+        messageEl.textContent = "Cannot place larger disk on smaller disk!";
+      }
+    }
+
+    function checkWin() {
+      if (disks <= 6 && state[2].length === disks) {
+        messageEl.textContent = "Congratulations! You solved it!";
+        logToTerminal("Game completed successfully.");
+      }
+    }
+
+    // Recursive solver outputs steps to terminal; simulates automatic moves optionally
+    function towerOfHanoiSolver(n, fromRod, toRod, auxRod) {
+      if (n === 0) return;
+      towerOfHanoiSolver(n - 1, fromRod, auxRod, toRod);
+      logToTerminal(`Move disk ${n} from Peg ${fromRod} to Peg ${toRod}`);
+      towerOfHanoiSolver(n - 1, auxRod, toRod, fromRod);
+    }
+
+    // Starts a new game and prepares for interaction or suggestions
+    function startGame() {
+      clearTerminal();
+      messageEl.textContent = "";
+      const inputCount = parseInt(document.getElementById('diskCount').value, 10);
+      if (!inputCount || inputCount < 1) {
+        messageEl.textContent = "Please enter a valid positive number of disks.";
+        return;
+      }
+      disks = inputCount;
+      initGameState();
+      if (disks <= 6) {
+        logToTerminal(`Game started with ${disks} disks. You can play manually.`);
+      } else {
+        logToTerminal(`Disks exceed 6, auto solver recommended.`);
+      }
+      render();
+    }
+
+    // Run auto solver and output steps in terminal, disables manual play
+    function runAutoSolver() {
+      clearTerminal();
+      messageEl.textContent = "";
+      const inputCount = parseInt(document.getElementById('diskCount').value, 10);
+      if (!inputCount || inputCount < 1) {
+        messageEl.textContent = "Please enter a valid positive number of disks.";
+        return;
+      }
+      disks = inputCount;
+      if (disks <= 6) {
+        // Auto solve with manual disks rendered and moves shown inside terminal
+        clearTerminal();
+        logToTerminal(`Auto solving Tower of Hanoi with ${disks} disks...`);
+        initGameState();
+        render();
+        // We simulate moves visually disabled here to avoid user interaction conflicts
+        // But you can extend it to animate moves by some delay and update state accordingly
+        towerOfHanoiSolver(disks, 1, 3, 2);
+        logToTerminal("Auto solve completed.");
+      } else {
+        logToTerminal(`Auto solving Tower of Hanoi with ${disks} disks...`);
+        // Just output steps, no visual game
+        towerOfHanoiSolver(disks, 1, 3, 2);
+        logToTerminal("Auto solve completed.");
+      }
+    }
+
+    // Initialize with default 3 disks
+    startGame();
+  </script>
+</body>
+</html>
